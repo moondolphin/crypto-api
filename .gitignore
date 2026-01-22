@@ -15,3 +15,23 @@
 
 # Docker volumes (safety)
 **/mysql_data
+
+# Swagger generated files
+docs/docs.go
+docs/swagger.json
+docs/swagger.yaml
+
+# Test coverage and output
+*.out
+coverage.*
+
+# Logs
+*.log
+
+# Editor/OS temp files
+*~
+.swp
+.swo
+
+# Go mocks
+**/mock_*.go

@@ -1,0 +1,44 @@
+package mysql
+
+import (
+	"context"
+	"database/sql"
+
+	"github.com/moondolphin/crypto-api/domain"
+)
+
+type MySQLCoinRepository struct {
+	DB *sql.DB
+}
+
+func NewMySQLCoinRepository(db *sql.DB) *MySQLCoinRepository {
+	return &MySQLCoinRepository{DB: db}
+}
+
+func (r *MySQLCoinRepository) GetEnabledBySymbol(ctx context.Context, symbol string) (*domain.Coin, error) {
+	const q = `
+		SELECT id, symbol, enabled, coingecko_id, binance_symbol
+		FROM coins
+		WHERE symbol = ? AND enabled = true
+		LIMIT 1
+	`
+
+	row := r.DB.QueryRowContext(ctx, q, symbol)
+
+	var c domain.Coin
+	err := row.Scan(
+		&c.ID,
+		&c.Symbol,
+		&c.Enabled,
+		&c.CoinGeckoID,
+		&c.BinanceSymbol,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &c, nil
+}

@@ -3,18 +3,34 @@ services:
     image: mysql:5.7
     container_name: crypto-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: codecamp
-      MYSQL_DATABASE: crypto
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DB}
     ports:
       - "3308:3306"
     volumes:
       - crypto_mysqldata:/var/lib/mysql
       - ./initdb:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pcodecamp"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_PASSWORD}"]
       interval: 5s
       timeout: 3s
       retries: 30
+
+  api:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: crypto-api
+    env_file:
+      - ../../.env
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
 
 volumes:
   crypto_mysqldata:
