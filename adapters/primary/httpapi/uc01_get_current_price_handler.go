@@ -1,4 +1,4 @@
-package http
+package httpapi
 
 import (
 	"net/http"
@@ -16,7 +16,7 @@ type GetCurrentPriceHandler struct {
 // @Tags Crypto
 // @Param symbol query string true "Símbolo (BTC, ETH)"
 // @Param currency query string true "Moneda (USD, USDT)"
-// @Param provider query string true "Proveedor (binance)"
+// @Param provider query string true "Proveedor (binance, coingecko)"
 // @Success 200 {object} domain.PriceQuote
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string

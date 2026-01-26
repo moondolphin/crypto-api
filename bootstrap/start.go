@@ -10,20 +10,16 @@ import (
 	httpapi "github.com/moondolphin/crypto-api/adapters/primary/httpapi"
 	mysqlrepo "github.com/moondolphin/crypto-api/adapters/secondary/persistence/mysql"
 	"github.com/moondolphin/crypto-api/adapters/secondary/providers"
+	"github.com/moondolphin/crypto-api/adapters/secondary/security"
 	"github.com/moondolphin/crypto-api/app"
 	"github.com/moondolphin/crypto-api/config"
 	"github.com/moondolphin/crypto-api/service"
-
-	"github.com/moondolphin/crypto-api/domain"
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func Start() (*gin.Engine, error) {
-
-	_ = domain.PriceQuote{}
-
 	dsn, err := config.MySQLDSN()
 	if err != nil {
 		return nil, err
@@ -38,34 +34,62 @@ func Start() (*gin.Engine, error) {
 		return nil, err
 	}
 
+	// deps
+	userRepo := mysqlrepo.NewMySQLUserRepository(db)
+	hasher := security.NewBcryptHasher(0)
+
+	jwtSecret, err := config.JWTSecret()
+	if err != nil {
+		return nil, err
+	}
+	jwtTTL := config.JWTTTL()
+	jwtSvc := security.NewJWTService(jwtSecret, jwtTTL, "crypto-api")
+
+	// use cases
+	registerUC := app.RegisterUserUseCase{
+		UserRepo: userRepo,
+		Hasher:   hasher,
+		Now:      time.Now,
+	}
+
+	loginUC := app.LoginUseCase{
+		UserRepo: userRepo,
+		Hasher:   hasher,
+		Tokens:   jwtSvc,
+		Now:      time.Now,
+		TTL:      jwtTTL,
+	}
+
 	coinRepo := mysqlrepo.NewMySQLCoinRepository(db)
 	reg := service.NewProviderRegistry(
 		providers.NewBinanceProvider(),
 		providers.NewCoinGeckoProvider(),
 	)
 
-	uc := app.GetCurrentPriceUseCase{
+	priceUC := app.GetCurrentPriceUseCase{
 		CoinRepo:  coinRepo,
 		Providers: reg,
 		Now:       time.Now,
 	}
 
+	// router
 	r := gin.Default()
+
+	auth := r.Group("/api/v1")
+	auth.Use(httpapi.AuthRequired(jwtSecret))
+
+	// ejemplo: dejamos público UC-01
+	r.GET("/api/v1/crypto/price", httpapi.GetCurrentPriceHandler{UC: priceUC}.Handle)
+
+	// privados (por ahora: placeholder)
+	auth.GET("/me", func(c *gin.Context) {
+		v, _ := c.Get("auth")
+		c.JSON(200, v)
+	})
+
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	// @Summary Consultar precio actual de criptomoneda
-	// @Description Consulta el precio actual de una criptomoneda habilitada
-	// @Tags Crypto
-	// @Param symbol query string true "Símbolo (BTC, ETH)"
-	// @Param currency query string true "Moneda (USD, USDT)"
-	// @Param provider query string true "Proveedor (binance)"
-	// @Success 200 {object} domain.PriceQuote
-	// @Failure 400 {object} map[string]string
-	// @Failure 404 {object} map[string]string
-	// @Failure 503 {object} map[string]string
-	// @Router /api/v1/crypto/price [get]
-
-	r.GET("/api/v1/crypto/price", httpapi.GetCurrentPriceHandler{UC: uc}.Handle)
+	r.POST("/api/v1/auth/register", httpapi.RegisterUserHandler{UC: registerUC}.Handle)
+	r.POST("/api/v1/auth/login", httpapi.LoginHandler{UC: loginUC}.Handle)
 
 	return r, nil
 }
