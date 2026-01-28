@@ -2,16 +2,77 @@ CREATE TABLE IF NOT EXISTS coins (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   symbol VARCHAR(16) NOT NULL UNIQUE,
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
-  coingecko_id VARCHAR(64),
-  binance_symbol VARCHAR(32),
+  coingecko_id VARCHAR(64) NOT NULL DEFAULT '',
+  binance_symbol VARCHAR(32) NOT NULL DEFAULT '',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO coins (symbol, enabled, coingecko_id, binance_symbol)
-VALUES
-  ('BTC', TRUE, 'bitcoin', 'BTCUSDT'),
-  ('ETH', TRUE, 'ethereum', 'ETHUSDT')
+INSERT INTO coins (symbol, enabled, coingecko_id, binance_symbol) VALUES
+('BTC', TRUE, 'bitcoin', 'BTCUSDT'),
+('ETH', TRUE, 'ethereum', 'ETHUSDT'),
+('BNB', TRUE, 'binancecoin', 'BNBUSDT'),
+('SOL', TRUE, 'solana', 'SOLUSDT'),
+('XRP', TRUE, 'ripple', 'XRPUSDT'),
+('ADA', TRUE, 'cardano', 'ADAUSDT'),
+('DOGE', TRUE, 'dogecoin', 'DOGEUSDT'),
+('AVAX', TRUE, 'avalanche-2', 'AVAXUSDT'),
+('TRX', TRUE, 'tron', 'TRXUSDT'),
+('DOT', TRUE, 'polkadot', 'DOTUSDT'),
+('MATIC', TRUE, 'matic-network', 'MATICUSDT'),
+('LINK', TRUE, 'chainlink', 'LINKUSDT'),
+('LTC', TRUE, 'litecoin', 'LTCUSDT'),
+('BCH', TRUE, 'bitcoin-cash', 'BCHUSDT'),
+('ATOM', TRUE, 'cosmos', 'ATOMUSDT'),
+('ETC', TRUE, 'ethereum-classic', 'ETCUSDT'),
+('FIL', TRUE, 'filecoin', 'FILUSDT'),
+('ICP', TRUE, 'internet-computer', 'ICPUSDT'),
+('APT', TRUE, 'aptos', 'APTUSDT'),
+('ARB', TRUE, 'arbitrum', 'ARBUSDT'),
+('OP', TRUE, 'optimism', 'OPUSDT'),
+('NEAR', TRUE, 'near', 'NEARUSDT'),
+('ALGO', TRUE, 'algorand', 'ALGOUSDT'),
+('VET', TRUE, 'vechain', 'VETUSDT'),
+('HBAR', TRUE, 'hedera-hashgraph', 'HBARUSDT'),
+('SAND', TRUE, 'the-sandbox', 'SANDUSDT'),
+('MANA', TRUE, 'decentraland', 'MANAUSDT'),
+('EGLD', TRUE, 'elrond-erd-2', 'EGLDUSDT'),
+('AAVE', TRUE, 'aave', 'AAVEUSDT'),
+('AXS', TRUE, 'axie-infinity', 'AXSUSDT'),
+('XTZ', TRUE, 'tezos', 'XTZUSDT'),
+('THETA', TRUE, 'theta-token', 'THETAUSDT'),
+('EOS', TRUE, 'eos', 'EOSUSDT'),
+('KLAY', TRUE, 'klay-token', 'KLAYUSDT'),
+('FLOW', TRUE, 'flow', 'FLOWUSDT'),
+('GALA', TRUE, 'gala', 'GALAUSDT'),
+('CHZ', TRUE, 'chiliz', 'CHZUSDT'),
+('ENJ', TRUE, 'enjincoin', 'ENJUSDT'),
+('DYDX', TRUE, 'dydx', 'DYDXUSDT'),
+('CRV', TRUE, 'curve-dao-token', 'CRVUSDT'),
+('SNX', TRUE, 'synthetix-network-token', 'SNXUSDT'),
+('COMP', TRUE, 'compound-governance-token', 'COMPUSDT'),
+('KSM', TRUE, 'kusama', 'KSMUSDT'),
+('ZIL', TRUE, 'zilliqa', 'ZILUSDT'),
+('1INCH', TRUE, '1inch', '1INCHUSDT'),
+('BAT', TRUE, 'basic-attention-token', 'BATUSDT'),
+('ANKR', TRUE, 'ankr', 'ANKRUSDT'),
+('CELO', TRUE, 'celo', 'CELOUSDT')
 ON DUPLICATE KEY UPDATE
   enabled = VALUES(enabled),
   coingecko_id = VALUES(coingecko_id),
   binance_symbol = VALUES(binance_symbol);
+
+
+  CREATE TABLE IF NOT EXISTS quotes (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  coin_id BIGINT NOT NULL,
+  symbol VARCHAR(20) NOT NULL,
+  provider VARCHAR(50) NOT NULL,
+  currency VARCHAR(10) NOT NULL,
+  price VARCHAR(64) NOT NULL,
+  quoted_at DATETIME(6) NOT NULL,
+  created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  INDEX idx_quotes_coin_time (coin_id, quoted_at),
+  INDEX idx_quotes_provider (provider),
+  CONSTRAINT fk_quotes_coin FOREIGN KEY (coin_id) REFERENCES coins(id)
+);
+

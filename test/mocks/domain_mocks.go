@@ -122,3 +122,18 @@ func (r *MockPriceProviderRegistryMockRecorder) Get(name any) *gomock.Call {
 	r.mock.ctrl.T.Helper()
 	return r.mock.ctrl.RecordCallWithMethodType(r.mock, "Get", reflect.TypeOf((*MockPriceProviderRegistry)(nil).Get), name)
 }
+
+// ListEnabled mocks base method.
+func (m *MockCoinRepository) ListEnabled(ctx context.Context) ([]domain.Coin, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListEnabled", ctx)
+	ret0, _ := ret[0].([]domain.Coin)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListEnabled indicates an expected call of ListEnabled.
+func (mr *MockCoinRepositoryMockRecorder) ListEnabled(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListEnabled", reflect.TypeOf((*MockCoinRepository)(nil).ListEnabled), ctx)
+}

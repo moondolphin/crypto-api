@@ -75,21 +75,36 @@ func Start() (*gin.Engine, error) {
 	// router
 	r := gin.Default()
 
+	quoteRepo := mysqlrepo.NewMySQLQuoteRepository(db)
+
+	refreshUC := app.RefreshQuotesUseCase{
+		CoinRepo:  coinRepo,
+		QuoteRepo: quoteRepo,
+		Providers: reg,
+		Now:       time.Now,
+		ProviderFX: map[string]string{
+			"binance":   "USDT",
+			"coingecko": "USD",
+		},
+	}
+
+	// swagger
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// públicos
+	r.POST("/api/v1/auth/register", httpapi.RegisterUserHandler{UC: registerUC}.Handle)
+	r.POST("/api/v1/auth/login", httpapi.LoginHandler{UC: loginUC}.Handle)
+	r.GET("/api/v1/crypto/price", httpapi.GetCurrentPriceHandler{UC: priceUC}.Handle)
+	r.POST("/api/v1/job/refresh", httpapi.RefreshHandler{UC: refreshUC}.Handle)
+
+	// privados
 	auth := r.Group("/api/v1")
 	auth.Use(httpapi.AuthRequired(jwtSecret))
 
-	// ejemplo: dejamos público UC-01
-	r.GET("/api/v1/crypto/price", httpapi.GetCurrentPriceHandler{UC: priceUC}.Handle)
-
-	// privados (por ahora: placeholder)
 	auth.GET("/me", func(c *gin.Context) {
 		v, _ := c.Get("auth")
 		c.JSON(200, v)
 	})
-
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	r.POST("/api/v1/auth/register", httpapi.RegisterUserHandler{UC: registerUC}.Handle)
-	r.POST("/api/v1/auth/login", httpapi.LoginHandler{UC: loginUC}.Handle)
 
 	return r, nil
 }
