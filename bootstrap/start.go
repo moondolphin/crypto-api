@@ -66,16 +66,15 @@ func Start() (*gin.Engine, error) {
 		providers.NewCoinGeckoProvider(),
 	)
 
-	priceUC := app.GetCurrentPriceUseCase{
-		CoinRepo:  coinRepo,
-		Providers: reg,
-		Now:       time.Now,
-	}
-
 	// router
 	r := gin.Default()
 
 	quoteRepo := mysqlrepo.NewMySQLQuoteRepository(db)
+
+	lastPriceUC := app.GetLastPriceUseCase{
+		CoinRepo:  coinRepo,
+		QuoteRepo: quoteRepo,
+	}
 
 	refreshUC := app.RefreshQuotesUseCase{
 		CoinRepo:  coinRepo,
@@ -94,7 +93,7 @@ func Start() (*gin.Engine, error) {
 	// públicos
 	r.POST("/api/v1/auth/register", httpapi.RegisterUserHandler{UC: registerUC}.Handle)
 	r.POST("/api/v1/auth/login", httpapi.LoginHandler{UC: loginUC}.Handle)
-	r.GET("/api/v1/crypto/price", httpapi.GetCurrentPriceHandler{UC: priceUC}.Handle)
+	r.GET("/api/v1/crypto/price", httpapi.GetCurrentPriceHandler{UC: lastPriceUC}.Handle)
 	r.POST("/api/v1/job/refresh", httpapi.RefreshHandler{UC: refreshUC}.Handle)
 
 	// privados
