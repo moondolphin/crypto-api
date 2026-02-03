@@ -87,6 +87,10 @@ func Start() (*gin.Engine, error) {
 		},
 	}
 
+	searchQuotesUC := app.SearchQuotesUseCase{
+		Repo: quoteRepo,
+	}
+
 	// swagger
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -95,6 +99,7 @@ func Start() (*gin.Engine, error) {
 	r.POST("/api/v1/auth/login", httpapi.LoginHandler{UC: loginUC}.Handle)
 	r.GET("/api/v1/crypto/price", httpapi.GetCurrentPriceHandler{UC: lastPriceUC}.Handle)
 	r.POST("/api/v1/job/refresh", httpapi.RefreshHandler{UC: refreshUC}.Handle)
+	r.GET("/api/v1/quotes", httpapi.SearchQuotesHandler{UC: searchQuotesUC}.Handle)
 
 	// privados
 	auth := r.Group("/api/v1")

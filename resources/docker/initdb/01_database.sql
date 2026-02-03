@@ -68,7 +68,7 @@ ON DUPLICATE KEY UPDATE
   symbol VARCHAR(20) NOT NULL,
   provider VARCHAR(50) NOT NULL,
   currency VARCHAR(10) NOT NULL,
-  price VARCHAR(64) NOT NULL,
+  price DECIMAL(30,10) NOT NULL,
   quoted_at DATETIME(6) NOT NULL,
   created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   INDEX idx_quotes_coin_time (coin_id, quoted_at),

@@ -6,4 +6,6 @@ type QuoteRepository interface {
 	Insert(ctx context.Context, q Quote) error
 
 	GetLatest(ctx context.Context, symbol, provider, currency string) (*PriceQuote, error)
+
+	ListFilter(ctx context.Context, f QuoteFilter) ([]Quote, int, error)
 }
