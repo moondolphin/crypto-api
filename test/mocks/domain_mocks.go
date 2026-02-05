@@ -137,3 +137,31 @@ func (mr *MockCoinRepositoryMockRecorder) ListEnabled(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListEnabled", reflect.TypeOf((*MockCoinRepository)(nil).ListEnabled), ctx)
 }
+
+func (m *MockCoinRepository) GetBySymbol(ctx context.Context, symbol string) (*domain.Coin, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBySymbol", ctx, symbol)
+
+	c, _ := ret[0].(*domain.Coin)
+	err, _ := ret[1].(error)
+	return c, err
+}
+
+func (m *MockCoinRepository) Upsert(ctx context.Context, c domain.Coin) (*domain.Coin, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Upsert", ctx, c)
+
+	out, _ := ret[0].(*domain.Coin)
+	err, _ := ret[1].(error)
+	return out, err
+}
+
+func (mr *MockCoinRepositoryMockRecorder) Upsert(ctx, c any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(
+		mr.mock,
+		"Upsert",
+		reflect.TypeOf((*MockCoinRepository)(nil).Upsert),
+		ctx, c,
+	)
+}

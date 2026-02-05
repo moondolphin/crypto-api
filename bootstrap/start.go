@@ -91,6 +91,10 @@ func Start() (*gin.Engine, error) {
 		Repo: quoteRepo,
 	}
 
+	createCoinUC := app.CreateCoinUseCase{
+		CoinRepo: coinRepo,
+	}
+
 	// swagger
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -104,6 +108,7 @@ func Start() (*gin.Engine, error) {
 	// privados
 	auth := r.Group("/api/v1")
 	auth.Use(httpapi.AuthRequired(jwtSecret))
+	auth.POST("/coins", httpapi.CreateCoinHandler{UC: createCoinUC}.Handle)
 
 	auth.GET("/me", func(c *gin.Context) {
 		v, _ := c.Get("auth")

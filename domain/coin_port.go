@@ -8,4 +8,8 @@ type CoinRepository interface {
 
 	// ListEnabled devuelve todas las coins habilitadas como de interes
 	ListEnabled(ctx context.Context) ([]Coin, error)
+
+	GetBySymbol(ctx context.Context, symbol string) (*Coin, error)
+
+	Upsert(ctx context.Context, c Coin) (*Coin, error)
 }

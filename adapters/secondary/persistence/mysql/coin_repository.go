@@ -63,3 +63,40 @@ func (r *MySQLCoinRepository) ListEnabled(ctx context.Context) ([]domain.Coin, e
 	}
 	return out, nil
 }
+
+func (r *MySQLCoinRepository) GetBySymbol(ctx context.Context, symbol string) (*domain.Coin, error) {
+	const q = `
+		SELECT id, symbol, enabled, coingecko_id, binance_symbol
+		FROM coins
+		WHERE symbol = ?
+		LIMIT 1
+	`
+
+	var c domain.Coin
+	err := r.DB.QueryRowContext(ctx, q, symbol).Scan(
+		&c.ID, &c.Symbol, &c.Enabled, &c.CoinGeckoID, &c.BinanceSymbol,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func (r *MySQLCoinRepository) Upsert(ctx context.Context, c domain.Coin) (*domain.Coin, error) {
+	const stmt = `
+		INSERT INTO coins (symbol, enabled, coingecko_id, binance_symbol)
+		VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			enabled = VALUES(enabled),
+			coingecko_id = VALUES(coingecko_id),
+			binance_symbol = VALUES(binance_symbol)
+	`
+	_, err := r.DB.ExecContext(ctx, stmt, c.Symbol, c.Enabled, c.CoinGeckoID, c.BinanceSymbol)
+	if err != nil {
+		return nil, err
+	}
+	return r.GetBySymbol(ctx, c.Symbol)
+}
