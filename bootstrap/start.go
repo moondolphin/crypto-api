@@ -2,6 +2,9 @@ package bootstrap
 
 import (
 	"database/sql"
+	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -120,5 +123,48 @@ func Start() (*gin.Engine, error) {
 		c.JSON(200, v)
 	})
 
+	registerFrontend(r)
+
 	return r, nil
+}
+func registerFrontend(r *gin.Engine) {
+	const frontendDir = "./frontend"
+
+	if _, err := os.Stat(frontendDir); err != nil {
+		return
+	}
+
+	// Servir estáticos sin conflicto con /api
+	r.StaticFS("/frontend", http.Dir(frontendDir))
+
+	// Home
+	r.GET("/", func(c *gin.Context) {
+		c.File(filepath.Join(frontendDir, "index.html"))
+	})
+
+	// Fallback (SPA) pero sin tocar /api ni /swagger ni archivos reales
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+
+		if len(path) >= 4 && path[:4] == "/api" {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		if len(path) >= 7 && path[:7] == "/swagger" {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		if len(path) >= 9 && path[:9] == "/frontend" {
+			c.Status(http.StatusNotFound)
+			return
+		}
+
+		// si pidieron un archivo con extensión, devolvé 404 (para no “mentir” con index)
+		if filepath.Ext(path) != "" {
+			c.Status(http.StatusNotFound)
+			return
+		}
+
+		c.File(filepath.Join(frontendDir, "index.html"))
+	})
 }

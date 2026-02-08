@@ -16,6 +16,7 @@ USER appuser
 WORKDIR /app
 
 COPY --from=build /out/crypto-api /app/crypto-api
+COPY --from=build /src/frontend /app/frontend
 
 EXPOSE 8080
 ENTRYPOINT ["/app/crypto-api"]
