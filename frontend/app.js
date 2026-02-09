@@ -1,9 +1,11 @@
 console.log("✅ app.js cargó");
 
 document.addEventListener("DOMContentLoaded", () => {
+ 
   // =========================
   // Helpers
   // =========================
+ 
   const $ = (id) => document.getElementById(id);
 
   const pick = (obj, ...keys) => {
@@ -15,8 +17,64 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const toUpper = (s) => (s || "").trim().toUpperCase();
 
+function showToast(message, variant = "dark") {
+    const toastEl = document.getElementById("app-toast");
+    const toastBody = document.getElementById("app-toast-body");
+    if (!toastEl || !toastBody || !window.bootstrap) return;
+
+    toastBody.textContent = message;
+
+    // variants: success, danger, warning, info, dark
+    toastEl.classList.remove("text-bg-success", "text-bg-danger", "text-bg-warning", "text-bg-info", "text-bg-dark");
+    toastEl.classList.add(`text-bg-${variant}`);
+
+    const toast = window.bootstrap.Toast.getOrCreateInstance(toastEl, {
+      delay: 3500,
+      autohide: true,
+    });
+    toast.show();
+  }
+
+function showModal(message, title = "Atención", icon = "ℹ️") {
+    const modalEl = document.getElementById("appMessageModal");
+    const bodyEl = document.getElementById("appMessageBody");
+    const titleEl = document.getElementById("appMessageTitle");
+    const iconEl = document.getElementById("appMessageIcon");
+
+    if (!modalEl || !bodyEl || !titleEl || !iconEl || !window.bootstrap) return;
+
+    titleEl.textContent = title;
+    bodyEl.textContent = message;
+    iconEl.textContent = icon;
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl, {
+      backdrop: "static",
+      keyboard: true,
+    });
+
+    modal.show();
+  }
+
+  function formatLocalDate(isoString) {
+    if (!isoString) return "-";
+
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return isoString;
+
+    return new Intl.DateTimeFormat(undefined, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(d);
+  }
+
+
+
   // =========================
-  // PASO 3: Última cotización
+  // Última cotización
   // =========================
   const btnLastPrice = $("btn-last-price");
   if (btnLastPrice) {
@@ -25,10 +83,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const provider = $("lp-provider")?.value || "";
       const currency = $("lp-currency")?.value || "";
 
-      if (!symbol) {
-        alert("Ingresá un symbol (BTC, ETH, etc)");
+    if (!symbol) {
+        showModal( "Ingresá un symbol válido (BTC, ETH, UNI, etc).",
+            "Dato requerido","⚠️" );
         return;
-      }
+    }
+
 
       const params = new URLSearchParams({ symbol, provider, currency });
 
@@ -40,16 +100,17 @@ document.addEventListener("DOMContentLoaded", () => {
         $("lp-out-symbol").textContent = pick(data, "symbol", "Symbol") ?? "-";
         $("lp-out-price").textContent = pick(data, "price", "Price") ?? "-";
         $("lp-out-provider").textContent = pick(data, "provider", "Provider") ?? "-";
-        $("lp-out-ts").textContent = pick(data, "timestamp", "Timestamp") ?? "-";
+        const tsRaw = pick(data, "timestamp", "Timestamp");
+        $("lp-out-ts").textContent = formatLocalDate(tsRaw);
       } catch (err) {
         console.error(err);
-        alert("Error consultando precio (mirá Console/Network)");
+        showModal( "Error consultando precio", "Atención", "❌");
       }
     });
   }
 
   // =========================
-  // PASO 4: Tabla de quotes
+  // Tabla de quotes
   // =========================
   const tbody = $("quotes-tbody");
   const summaryEl = $("quotes-summary");
@@ -96,8 +157,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const provider = pick(q, "provider", "Provider") ?? "-";
         const currency = pick(q, "currency", "Currency") ?? "-";
         const price = pick(q, "price", "Price") ?? "-";
-        const quotedAt =
-          pick(q, "quoted_at", "quotedAt", "QuotedAt", "Quoted_At") ?? "-";
+        const quotedAtRaw =
+            pick(q, "quoted_at", "quotedAt", "QuotedAt", "Quoted_At") ?? "-";
+
+        const quotedAt = formatLocalDate(quotedAtRaw);
+
 
         return (
           "<tr>" +
@@ -131,7 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildQuery() {
-    // backend real: snake_case
+    // snake_case
     const params = new URLSearchParams();
 
     const symbol = toUpper(fSymbol.value);
@@ -219,4 +283,190 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Primera carga
   loadQuotes();
+
+    // =========================
+  // Auth (JWT)
+  // =========================
+  const TOKEN_KEY = "crypto_api_token";
+
+  const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
+  const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
+  const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+  const isLoggedIn = () => Boolean(getToken());
+
+  const btnOpenLogin = $("btn-open-login");
+  const btnOpenRegister = $("btn-open-register"); 
+  const btnOpenCoins = $("btn-open-coins");
+  const btnRunRefresh = $("btn-run-refresh");
+
+  const loginError = $("login-error");
+  const loginForm = $("login-form");
+  const loginEmail = $("login-email");
+  const loginPassword = $("login-password");
+
+  function setPrivateEnabled(enabled) {
+    if (btnOpenCoins) btnOpenCoins.disabled = !enabled;
+    if (btnRunRefresh) btnRunRefresh.disabled = !enabled;
+  }
+
+  function setNavbarAuthState() {
+    const logged = isLoggedIn();
+
+    // Enable/disable privados
+    setPrivateEnabled(logged);
+
+    // Convertimos el botón Login en Logout cuando hay token
+    if (btnOpenLogin) {
+      btnOpenLogin.textContent = logged ? "Logout" : "Login";
+      btnOpenLogin.classList.toggle("btn-warning", !logged);
+      btnOpenLogin.classList.toggle("btn-outline-light", logged);
+    }
+
+    if (btnOpenRegister) {
+      btnOpenRegister.disabled = true;
+    }
+  }
+
+  async function authFetch(url, options = {}) {
+    const token = getToken();
+    const headers = new Headers(options.headers || {});
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    return fetch(url, { ...options, headers });
+  }
+
+  function showLoginError(msg) {
+    if (!loginError) return;
+    loginError.textContent = msg;
+    loginError.classList.remove("d-none");
+    showModal( "Error consultando precio");
+  }
+
+  function clearLoginError() {
+    if (!loginError) return;
+    loginError.textContent = "";
+    loginError.classList.add("d-none");
+  }
+
+  // Inicial
+  setNavbarAuthState();
+
+
+
+  // =========================
+  // Helpers
+  // =========================
+  // Abrir modal de login
+  btnOpenLogin?.addEventListener("click", () => {
+    if (isLoggedIn()) {
+      clearToken();
+      setNavbarAuthState();
+      return;
+    }
+
+    clearLoginError();
+    loginEmail.value = "";
+    loginPassword.value = "";
+
+    // Bootstrap modal
+    const el = document.getElementById("loginModal");
+    if (!el) return;
+
+    const modal = window.bootstrap?.Modal?.getOrCreateInstance(el);
+    modal?.show();
+  });
+
+  // Submit login
+  loginForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearLoginError();
+
+    const email = (loginEmail?.value || "").trim();
+    const password = loginPassword?.value || "";
+
+    if (!email || !password) {
+      //showLoginError("Email y password son requeridos.");
+      showModal( "Email y password son requeridos.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        // Intentamos leer mensaje si viene JSON, sino usamos status
+        let msg = `Login inválido (HTTP ${res.status})`;
+        try {
+          const t = await res.text();
+          if (t) msg = t;
+        } catch (_) {}
+        //showLoginError(msg);
+        showModal(msg);
+        return;
+      }
+
+      const data = await res.json();
+      const token = data.access_token || data.accessToken || data.AccessToken;
+
+      if (!token) {
+        //showLoginError();
+         showModal("El server no devolvió access_token.");
+        return;
+      }
+
+      setToken(token);
+      setNavbarAuthState();
+
+      // Cerrar modal
+      const el = document.getElementById("loginModal");
+      const modal = el ? window.bootstrap?.Modal?.getOrCreateInstance(el) : null;
+      modal?.hide();
+    } catch (err) {
+      console.error(err);
+      //showLoginError("Error de red en login (mirá Console).");
+      showModal("Error de red en login (mirá Console).");
+    }
+  });
+    // =========================
+  //  POST Refresh (manual)
+  // =========================
+  btnRunRefresh?.addEventListener("click", async () => {
+    try {
+      btnRunRefresh.disabled = true;
+      const oldText = btnRunRefresh.textContent;
+      btnRunRefresh.textContent = "Refreshing...";
+
+      const res = await authFetch("/api/v1/job/refresh", {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(body || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      const coinsProcessed = data.coins_processed ?? data.coinsProcessed ?? data.CoinsProcessed ?? "-";
+      const quotesSaved = data.quotes_saved ?? data.quotesSaved ?? data.QuotesSaved ?? "-";
+      const failed = data.failed ?? data.Failed ?? "-";
+
+      showToast(`Refresh OK ✅  Coins: ${coinsProcessed} | Quotes: ${quotesSaved} | Failed: ${failed}`, "success");
+
+      // Recargar tabla de quotes
+      if (typeof loadQuotes === "function") {
+        await loadQuotes();
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(`Refresh falló ❌ ${err?.message || err}`, "danger");
+    } finally {
+      btnRunRefresh.disabled = false;
+      btnRunRefresh.textContent = "POST Refresh (manual)";
+    }
+  });
+
 });

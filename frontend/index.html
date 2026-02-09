@@ -11,6 +11,83 @@
   <link rel="stylesheet" href="/frontend/styles.css" />
 
 </head>
+<!-- Login Modal -->
+<div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Login</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="login-error" class="alert alert-danger d-none" role="alert"></div>
+
+        <form id="login-form" class="row g-2">
+          <div class="col-12">
+            <label class="form-label">Email</label>
+            <input id="login-email" type="email" class="form-control" placeholder="user@example.com" required />
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Password</label>
+            <input id="login-password" type="password" class="form-control" placeholder="••••••••" required />
+          </div>
+
+          <div class="col-12 d-grid mt-2">
+            <button id="btn-do-login" type="submit" class="btn btn-warning">Entrar</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+  <div id="app-toast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body" id="app-toast-body">
+        -
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
+<!-- App Message Modal -->
+<div class="modal fade" id="appMessageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="appMessageTitle">Atención</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+    <div class="modal-body text-center">
+            <div class="fs-1 mb-3" id="appMessageIcon">ℹ️</div>
+            <div id="appMessageBody">
+              -
+            </div>
+    </div>
+
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+          Aceptar
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
 
 <body class="bg-light">
 
@@ -211,6 +288,7 @@
     © 2026 Crypto API
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/frontend/app.js"></script>
 </body>
 </html>
