@@ -469,4 +469,113 @@ function showModal(message, title = "Atención", icon = "ℹ️") {
     }
   });
 
+    // =========================
+  // Gestionar Coins (modal + acciones)
+  // =========================
+  const coinSymbolInput = document.getElementById("coin-symbol");
+  const btnCoinDisable = document.getElementById("btn-coin-disable");
+  const btnCoinEnable = document.getElementById("btn-coin-enable");
+
+  function getCoinSymbol() {
+    return (coinSymbolInput?.value || "").trim().toUpperCase();
+  }
+
+  function openCoinsModal() {
+    const el = document.getElementById("coinsModal");
+    if (!el || !window.bootstrap) return;
+
+    if (coinSymbolInput) coinSymbolInput.value = "";
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(el);
+    modal.show();
+  }
+
+  // Abrir modal desde el botón del dashboard
+  btnOpenCoins?.addEventListener("click", () => {
+    if (!isLoggedIn()) {
+      showModal("Tenés que iniciar sesión para gestionar coins.", "Acceso requerido", "🔒");
+      return;
+    }
+    openCoinsModal();
+  });
+
+  // Alta / Habilitar moneda (POST /api/v1/coins)
+  btnCoinEnable?.addEventListener("click", async () => {
+    const symbol = getCoinSymbol();
+    if (!symbol) {
+      showModal("Ingresá un symbol (BTC, ETH, UNI...).", "Dato requerido", "⚠️");
+      return;
+    }
+
+    try {
+      btnCoinEnable.disabled = true;
+
+      const res = await authFetch("/api/v1/coins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol,
+          enabled: true, // default true (alta/habilitar)
+          // coingecko_id / binance_symbol: opcionales
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(body || `HTTP ${res.status}`);
+      }
+
+      await res.json().catch(() => ({}));
+      showToast(`Moneda habilitada ✅ ${symbol}`, "success");
+
+    } catch (err) {
+      console.error(err);
+      showModal(
+        `No se pudo dar de alta/habilitar la moneda.\n${err?.message || err}`,
+        "Error",
+        "❌"
+      );
+    } finally {
+      btnCoinEnable.disabled = false;
+    }
+  });
+
+  // Deshabilitar moneda (PUT /api/v1/coins/{symbol} con enabled=false)
+  btnCoinDisable?.addEventListener("click", async () => {
+    const symbol = getCoinSymbol();
+    if (!symbol) {
+      showModal("Ingresá un symbol (BTC, ETH, UNI...).", "Dato requerido", "⚠️");
+      return;
+    }
+
+    try {
+      btnCoinDisable.disabled = true;
+
+      const res = await authFetch(`/api/v1/coins/${encodeURIComponent(symbol)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: false }),
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(body || `HTTP ${res.status}`);
+      }
+
+      await res.json().catch(() => ({}));
+      showToast(`Moneda deshabilitada ✅ ${symbol}`, "success");
+
+    } catch (err) {
+      console.error(err);
+      showModal(
+        `No se pudo deshabilitar la moneda.\n${err?.message || err}`,
+        "Error",
+        "❌"
+      );
+    } finally {
+      btnCoinDisable.disabled = false;
+    }
+  });
+
+
 });

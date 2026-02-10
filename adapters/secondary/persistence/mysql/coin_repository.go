@@ -87,13 +87,14 @@ func (r *MySQLCoinRepository) GetBySymbol(ctx context.Context, symbol string) (*
 
 func (r *MySQLCoinRepository) Upsert(ctx context.Context, c domain.Coin) (*domain.Coin, error) {
 	const stmt = `
-		INSERT INTO coins (symbol, enabled, coingecko_id, binance_symbol)
-		VALUES (?, ?, ?, ?)
-		ON DUPLICATE KEY UPDATE
-			enabled = VALUES(enabled),
-			coingecko_id = VALUES(coingecko_id),
-			binance_symbol = VALUES(binance_symbol)
-	`
+	INSERT INTO coins (symbol, enabled, coingecko_id, binance_symbol)
+	VALUES (?, ?, ?, ?)
+	ON DUPLICATE KEY UPDATE
+		enabled = VALUES(enabled),
+		coingecko_id = COALESCE(NULLIF(VALUES(coingecko_id), ''), coingecko_id),
+		binance_symbol = COALESCE(NULLIF(VALUES(binance_symbol), ''), binance_symbol)
+`
+
 	_, err := r.DB.ExecContext(ctx, stmt, c.Symbol, c.Enabled, c.CoinGeckoID, c.BinanceSymbol)
 	if err != nil {
 		return nil, err

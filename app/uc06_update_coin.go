@@ -47,8 +47,7 @@ func (uc UpdateCoinUseCase) Execute(ctx context.Context, in UpdateCoinInput) (*d
 		return nil, err
 	}
 	if existing == nil {
-		return nil, ErrCoinNotFound // si no la tenés creada, la creamos en el paso 3/handler o la agregás ahora
-	}
+		return nil, ErrCoinNotFound 
 
 	// Aplicamos cambios solo si vinieron
 	if in.Enabled != nil {
@@ -61,12 +60,12 @@ func (uc UpdateCoinUseCase) Execute(ctx context.Context, in UpdateCoinInput) (*d
 		existing.BinanceSymbol = strings.TrimSpace(in.BinanceSymbol)
 	}
 
-	// Persistimos (Upsert)
+	//(Upsert)
 	updated, err := uc.CoinRepo.Upsert(ctx, *existing)
 	if err != nil {
 		return nil, err
 	}
 
-	_ = uc.Now // por ahora no lo usamos; queda para futuro/auditoría/tests
+	_ = uc.Now 
 	return updated, nil
 }

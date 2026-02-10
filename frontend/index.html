@@ -87,6 +87,49 @@
   </div>
 </div>
 
+<!-- Coins Modal (Gestionar Coins) -->
+<div class="modal fade" id="coinsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Gestionar Coins</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <p class="text-muted small mb-3">
+          Ingresá el <b>symbol</b> (BTC, ETH, UNI...). Acciones privadas (requiere login).
+        </p>
+
+        <div class="mb-3">
+          <label class="form-label">Moneda (Symbol)</label>
+          <input id="coin-symbol" class="form-control" placeholder="UNI" />
+          <div class="form-text">
+            Se normaliza a mayúsculas (trim + uppercase).
+          </div>
+        </div>
+
+        <div class="d-grid gap-2">
+          <button id="btn-coin-disable" type="button" class="btn btn-outline-danger">
+            Deshabilitar moneda
+          </button>
+
+          <button id="btn-coin-enable" type="button" class="btn btn-primary">
+            Alta / Habilitar moneda
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Cerrar
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 
 <body class="bg-light">

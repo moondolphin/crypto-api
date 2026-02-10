@@ -29,17 +29,19 @@ func (h CreateCoinHandler) Handle(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_body"})
 		return
 	}
-
 	out, err := h.UC.Execute(c.Request.Context(), in)
 	if err != nil {
 		switch err {
 		case app.ErrInvalidCoinInput:
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		case app.ErrCoinNotResolvable:
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		default:
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "internal_error"})
 		}
 		return
 	}
+
 
 	c.JSON(http.StatusOK, out)
 }

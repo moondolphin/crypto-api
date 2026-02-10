@@ -96,6 +96,8 @@ func Start() (*gin.Engine, error) {
 
 	createCoinUC := app.CreateCoinUseCase{
 		CoinRepo: coinRepo,
+		Providers: reg,
+		BinanceQuoteCurrency: "USDT",
 	}
 
 	updateCoinUC := app.UpdateCoinUseCase{
