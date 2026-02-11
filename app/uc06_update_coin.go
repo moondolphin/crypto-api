@@ -48,6 +48,7 @@ func (uc UpdateCoinUseCase) Execute(ctx context.Context, in UpdateCoinInput) (*d
 	}
 	if existing == nil {
 		return nil, ErrCoinNotFound 
+	}
 
 	// Aplicamos cambios solo si vinieron
 	if in.Enabled != nil {

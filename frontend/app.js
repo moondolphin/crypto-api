@@ -315,7 +315,7 @@ function showModal(message, title = "Atención", icon = "ℹ️") {
     // Enable/disable privados
     setPrivateEnabled(logged);
 
-    // Convertimos el botón Login en Logout cuando hay token
+    // botón Login en Logout cuando hay token
     if (btnOpenLogin) {
       btnOpenLogin.textContent = logged ? "Logout" : "Login";
       btnOpenLogin.classList.toggle("btn-warning", !logged);
@@ -323,8 +323,9 @@ function showModal(message, title = "Atención", icon = "ℹ️") {
     }
 
     if (btnOpenRegister) {
-      btnOpenRegister.disabled = true;
+        btnOpenRegister.disabled = logged;
     }
+
   }
 
   async function authFetch(url, options = {}) {
@@ -576,6 +577,91 @@ function showModal(message, title = "Atención", icon = "ℹ️") {
       btnCoinDisable.disabled = false;
     }
   });
+// =========================
+// UC-10: Register (frontend)
+// =========================
+const btnRegisterSubmit = document.getElementById("btn-register-submit");
+
+const regName = document.getElementById("reg-name");
+const regEmail = document.getElementById("reg-email");
+const regPassword = document.getElementById("reg-password");
+
+function openRegisterModal() {
+  const el = document.getElementById("registerModal");
+  if (!el || !window.bootstrap) return;
+
+  // limpiar campos
+  if (regName) regName.value = "";
+  if (regEmail) regEmail.value = "";
+  if (regPassword) regPassword.value = "";
+
+  window.bootstrap.Modal.getOrCreateInstance(el).show();
+}
+
+function closeRegisterModal() {
+  const el = document.getElementById("registerModal");
+  if (!el || !window.bootstrap) return;
+  const modal = window.bootstrap.Modal.getInstance(el) || window.bootstrap.Modal.getOrCreateInstance(el);
+  modal.hide();
+}
+
+btnOpenRegister?.addEventListener("click", () => {
+  openRegisterModal();
+});
+
+btnRegisterSubmit?.addEventListener("click", async () => {
+  const name = (regName?.value || "").trim();
+  const email = (regEmail?.value || "").trim();
+  const password = (regPassword?.value || "").trim();
+
+  if (!name) {
+    showModal("Ingresá tu nombre.", "Dato requerido", "⚠️");
+    return;
+  }
+  if (!email) {
+    showModal("Ingresá un email válido.", "Dato requerido", "⚠️");
+    return;
+  }
+  if (!password) {
+    showModal("Ingresá una contraseña.", "Dato requerido", "⚠️");
+    return;
+  }
+
+  try {
+    btnRegisterSubmit.disabled = true;
+
+    const res = await fetch("/api/v1/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(body || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json().catch(() => ({}));
+
+    closeRegisterModal();
+    showToast(`Usuario creado ✅ ${data.email || email}`, "success");
+
+    
+    const loginEmail = document.getElementById("login-email");
+    if (loginEmail) loginEmail.value = email;
+
+  } catch (err) {
+    console.error(err);
+    showModal(
+      `No se pudo registrar.\n${err?.message || err}`,
+      "Error",
+      "❌"
+    );
+  } finally {
+    btnRegisterSubmit.disabled = false;
+  }
+});
+
 
 
 });

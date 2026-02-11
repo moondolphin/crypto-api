@@ -33,7 +33,7 @@ type CreateCoinOutput struct {
 	BinanceSymbol string `json:"binance_symbol"`
 }
 
-// Interface mínima para no acoplar app a package service
+
 type ProviderGetter interface {
 	Get(name string) (domain.PriceProvider, bool)
 }
@@ -42,7 +42,7 @@ type CreateCoinUseCase struct {
 	CoinRepo  domain.CoinRepository
 	Providers ProviderGetter
 
-	// Preferido para Binance (por defecto en tu sistema es USDT)
+	// Preferido para Binance (por defecto es USDT)
 	BinanceQuoteCurrency string
 
 	// HTTP client inyectable
@@ -62,11 +62,11 @@ func (uc CreateCoinUseCase) Execute(ctx context.Context, in CreateCoinInput) (Cr
 
 	client := uc.httpClient()
 
-	// Inputs saneados (Swagger "string" -> vacío)
+	// Inputs(Swagger "string" -> vacío)
 	inCG := sanitizeOptionalString(in.CoinGeckoID)
 	inBN := sanitizeOptionalString(in.BinanceSymbol)
 
-	// Validación inteligente de IDs provistos (Opción C)
+	
 	// Si son inválidos: se ignoran (no pisan) y luego se auto-resuelven.
 	if inBN != "" {
 		if err := validateBinanceSymbol(ctx, client, inBN); err != nil {
@@ -175,7 +175,7 @@ func (uc CreateCoinUseCase) autoResolve(ctx context.Context, client *http.Client
 }
 
 // =====================
-// Validaciones (Opción C)
+// Validaciones
 // =====================
 
 func validateBinanceSymbol(ctx context.Context, client *http.Client, pair string) error {
