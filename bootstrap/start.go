@@ -95,8 +95,8 @@ func Start() (*gin.Engine, error) {
 	}
 
 	createCoinUC := app.CreateCoinUseCase{
-		CoinRepo: coinRepo,
-		Providers: reg,
+		CoinRepo:             coinRepo,
+		Providers:            reg,
 		BinanceQuoteCurrency: "USDT",
 	}
 
@@ -105,21 +105,35 @@ func Start() (*gin.Engine, error) {
 		Now:      time.Now,
 	}
 
+	favRepo := mysqlrepo.NewMySQLFavoritesRepository(db)
+
 	// swagger
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// públicos
 	r.POST("/api/v1/auth/register", httpapi.RegisterUserHandler{UC: registerUC}.Handle)
 	r.POST("/api/v1/auth/login", httpapi.LoginHandler{UC: loginUC}.Handle)
-	r.GET("/api/v1/crypto/price", httpapi.GetCurrentPriceHandler{UC: lastPriceUC}.Handle)
+
+	r.GET("/api/v1/crypto/price",
+		httpapi.AuthOptional(jwtSecret),
+		httpapi.GetCurrentPriceHandler{UC: lastPriceUC}.Handle,
+	)
+
 	r.POST("/api/v1/job/refresh", httpapi.RefreshHandler{UC: refreshUC}.Handle)
-	r.GET("/api/v1/quotes", httpapi.SearchQuotesHandler{UC: searchQuotesUC}.Handle)
+	r.GET("/api/v1/quotes",
+		httpapi.AuthOptional(jwtSecret),
+		httpapi.SearchQuotesHandler{UC: searchQuotesUC}.Handle,
+	)
 
 	// privados
 	auth := r.Group("/api/v1")
 	auth.Use(httpapi.AuthRequired(jwtSecret))
 	auth.POST("/coins", httpapi.CreateCoinHandler{UC: createCoinUC}.Handle)
+	auth.GET("/users/me/favorites", httpapi.ListFavoritesHandler{FavRepo: favRepo}.Handle)
 	auth.PUT("/coins/:symbol", httpapi.UpdateCoinHandler{UC: updateCoinUC}.Handle)
+	auth.POST("/users/me/favorites/:symbol", httpapi.AddFavoriteHandler{CoinRepo: coinRepo, FavRepo: favRepo}.Handle)
+	auth.DELETE("/users/me/favorites/:symbol", httpapi.RemoveFavoriteHandler{CoinRepo: coinRepo, FavRepo: favRepo}.Handle)
+
 	auth.GET("/me", func(c *gin.Context) {
 		v, _ := c.Get("auth")
 		c.JSON(200, v)
@@ -144,7 +158,6 @@ func registerFrontend(r *gin.Engine) {
 		c.File(filepath.Join(frontendDir, "index.html"))
 	})
 
-	// Fallback (SPA) pero sin tocar /api ni /swagger ni archivos reales
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
 
@@ -161,7 +174,6 @@ func registerFrontend(r *gin.Engine) {
 			return
 		}
 
-		// si pidieron un archivo con extensión, devolvé 404 (para no “mentir” con index)
 		if filepath.Ext(path) != "" {
 			c.Status(http.StatusNotFound)
 			return

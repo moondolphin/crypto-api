@@ -1,10 +1,15 @@
 console.log("✅ app.js cargó");
+let cachedFavSymbols = null;
+
+let lastLookedUpSymbol = "";
 
 document.addEventListener("DOMContentLoaded", () => {
  
   // =========================
   // Helpers
   // =========================
+
+  
  
   const $ = (id) => document.getElementById(id);
 
@@ -71,6 +76,26 @@ function showModal(message, title = "Atención", icon = "ℹ️") {
     }).format(d);
   }
 
+  const btnFavLast = document.getElementById("btn-fav-last");
+
+btnFavLast?.addEventListener("click", async () => {
+  if (!lastLookedUpSymbol) {
+    showModal("Primero consultá una moneda para poder marcarla como favorita.", "Atención", "⚠️");
+    return;
+  }
+
+  try {
+    await addFavorite(lastLookedUpSymbol);
+    cachedFavSymbols = null;
+    showToast("Agregada a favoritas ✅", "success");
+    await refreshFavoritesUI();
+    await loadQuotes();
+  } catch (e) {
+    console.error(e);
+    showModal("No pude agregar favorita (mirá Console/Network).", "Error", "❌");
+  }
+});
+
 
 
   // =========================
@@ -97,11 +122,15 @@ function showModal(message, title = "Atención", icon = "ℹ️") {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
+        lastLookedUpSymbol = data.symbol || symbol.toUpperCase();
+
+
         $("lp-out-symbol").textContent = pick(data, "symbol", "Symbol") ?? "-";
         $("lp-out-price").textContent = pick(data, "price", "Price") ?? "-";
         $("lp-out-provider").textContent = pick(data, "provider", "Provider") ?? "-";
         const tsRaw = pick(data, "timestamp", "Timestamp");
         $("lp-out-ts").textContent = formatLocalDate(tsRaw);
+
       } catch (err) {
         console.error(err);
         showModal( "Error consultando precio", "Atención", "❌");
@@ -215,6 +244,26 @@ function showModal(message, title = "Atención", icon = "ℹ️") {
     return params.toString();
   }
 
+
+async function getFavSymbolsSet() {
+  const token = getToken();
+  if (!token) return null;
+
+  // cache liviano para no pegarle todo el tiempo
+  if (cachedFavSymbols) return cachedFavSymbols;
+
+  const res = await fetch("/api/v1/users/me/favorites", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const favs = await res.json();
+  //cachedFavSymbols = new Set(favs.map(x => x.symbol));
+  cachedFavSymbols = new Set(favs.map(x => (x.symbol || "").toUpperCase()));
+
+  return cachedFavSymbols;
+}
+
+
   async function loadQuotes() {
     setLoading();
     try {
@@ -222,9 +271,17 @@ function showModal(message, title = "Atención", icon = "ℹ️") {
       const res = await fetch(`/api/v1/quotes?${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const data = await res.json();
-      const items = pick(data, "items", "Items") || [];
-      const summary = pick(data, "summary", "Summary") || {};
+    const data = await res.json();
+
+    let items = pick(data, "items", "Items") || [];
+    const summary = pick(data, "summary", "Summary") || {};
+
+    const favSet = await getFavSymbolsSet();
+
+    if (favSet) {
+      //items = items.filter(x => favSet.has(x.symbol));
+       items = items.filter(x => favSet.has((x.symbol || "").toUpperCase()));
+    }
 
       if (!items.length) setEmpty();
       else renderRows(items);
@@ -242,6 +299,7 @@ function showModal(message, title = "Atención", icon = "ℹ️") {
       summaryEl.textContent =
         "Total items: - | Total pages: - | Page: - | Page size: -";
     }
+    
   }
 
   function clearFilters() {
@@ -309,24 +367,25 @@ function showModal(message, title = "Atención", icon = "ℹ️") {
     if (btnRunRefresh) btnRunRefresh.disabled = !enabled;
   }
 
-  function setNavbarAuthState() {
-    const logged = isLoggedIn();
+ function setNavbarAuthState() {
+  const logged = isLoggedIn();
 
-    // Enable/disable privados
-    setPrivateEnabled(logged);
+  // Enable/disable privados
+  setPrivateEnabled(logged);
 
-    // botón Login en Logout cuando hay token
-    if (btnOpenLogin) {
-      btnOpenLogin.textContent = logged ? "Logout" : "Login";
-      btnOpenLogin.classList.toggle("btn-warning", !logged);
-      btnOpenLogin.classList.toggle("btn-outline-light", logged);
-    }
-
-    if (btnOpenRegister) {
-        btnOpenRegister.disabled = logged;
-    }
-
+  // botón Login/Logout
+  if (btnOpenLogin) {
+    btnOpenLogin.textContent = logged ? "Logout" : "Login";
+    btnOpenLogin.classList.toggle("btn-warning", !logged);
+    btnOpenLogin.classList.toggle("btn-outline-light", logged);
   }
+
+  // Register deshabilitado si está logueado
+  if (btnOpenRegister) {
+    btnOpenRegister.disabled = logged;
+  }
+}
+
 
   async function authFetch(url, options = {}) {
     const token = getToken();
@@ -334,6 +393,31 @@ function showModal(message, title = "Atención", icon = "ℹ️") {
     if (token) headers.set("Authorization", `Bearer ${token}`);
     return fetch(url, { ...options, headers });
   }
+
+  let cachedFavSymbols = null;
+
+async function refreshAllUI() {
+  // 1) resetea cache porque cambió contexto (login/logout o favs)
+  cachedFavSymbols = null;
+
+  // 2) refresca navbar/botones
+  setNavbarAuthState();
+
+  // 3) refresca favoritas (si está logueado, lista; si no, muestra hint)
+  try {
+    await refreshFavoritesUI();
+  } catch (e) {
+    console.error(e);
+  }
+
+  // 4) refresca tabla (filtrará si hay favSet, y si no, queda pública)
+  try {
+    await loadQuotes();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 
   function showLoginError(msg) {
     if (!loginError) return;
@@ -357,24 +441,25 @@ function showModal(message, title = "Atención", icon = "ℹ️") {
   // Helpers
   // =========================
   // Abrir modal de login
-  btnOpenLogin?.addEventListener("click", () => {
-    if (isLoggedIn()) {
-      clearToken();
-      setNavbarAuthState();
-      return;
-    }
+btnOpenLogin?.addEventListener("click", async () => {
+  if (isLoggedIn()) {
+    clearToken();
+    await refreshAllUI();
+    return;
+  }
 
-    clearLoginError();
-    loginEmail.value = "";
-    loginPassword.value = "";
+  // abrir modal login como ya lo tenías
+  clearLoginError();
+  loginEmail.value = "";
+  loginPassword.value = "";
 
-    // Bootstrap modal
-    const el = document.getElementById("loginModal");
-    if (!el) return;
+  const el = document.getElementById("loginModal");
+  if (!el) return;
 
-    const modal = window.bootstrap?.Modal?.getOrCreateInstance(el);
-    modal?.show();
-  });
+  const modal = window.bootstrap?.Modal?.getOrCreateInstance(el);
+  modal?.show();
+});
+
 
   // Submit login
   loginForm?.addEventListener("submit", async (e) => {
@@ -419,12 +504,15 @@ function showModal(message, title = "Atención", icon = "ℹ️") {
       }
 
       setToken(token);
-      setNavbarAuthState();
+      await refreshAllUI();
+     
 
       // Cerrar modal
       const el = document.getElementById("loginModal");
       const modal = el ? window.bootstrap?.Modal?.getOrCreateInstance(el) : null;
       modal?.hide();
+      
+
     } catch (err) {
       console.error(err);
       //showLoginError("Error de red en login (mirá Console).");
@@ -661,6 +749,102 @@ btnRegisterSubmit?.addEventListener("click", async () => {
     btnRegisterSubmit.disabled = false;
   }
 });
+
+// =========================
+// UC-11: Favorites (frontend)
+// =========================
+ const btn = document.getElementById("btn-refresh-favs");
+  if (btn) btn.addEventListener("click", refreshFavoritesUI);
+
+  // al cargar la página
+  refreshFavoritesUI();
+
+async function loadFavorites() {
+  const token = getToken();
+  const hint = document.getElementById("fav-hint");
+  const list = document.getElementById("fav-list");
+  if (!list) return [];
+
+  list.innerHTML = "";
+
+  if (!token) {
+    if (hint) hint.style.display = "block";
+    return [];
+  }
+  if (hint) hint.style.display = "none";
+
+  const res = await fetch("/api/v1/users/me/favorites", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const favs = await res.json();
+
+  for (const c of favs) {
+    const li = document.createElement("li");
+    li.className = "list-group-item d-flex justify-content-between align-items-center";
+    li.innerHTML = `
+      <span><strong>${c.symbol}</strong> <span class="text-muted small">${c.enabled ? "" : "(disabled)"}</span></span>
+      <button class="btn btn-outline-danger btn-sm" data-unfav="${c.symbol}">Quitar</button>
+    `;
+    list.appendChild(li);
+  }
+
+  // wire unfav buttons
+  list.querySelectorAll("[data-unfav]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const sym = btn.getAttribute("data-unfav");
+      await removeFavorite(sym);
+      await refreshFavoritesUI();
+      await loadQuotes(); 
+    });
+  });
+
+  return favs;
+}
+async function addFavorite(symbol) {
+  const token = getToken();
+  if (!token) {
+    showConfirmModal("Necesitás login para agregar favoritas.");
+    return;
+  }
+
+  const res = await fetch(`/api/v1/users/me/favorites/${encodeURIComponent(symbol)}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  await refreshAllUI();
+}
+
+async function removeFavorite(symbol) {
+  const token = getToken();
+  if (!token) return;
+
+  const res = await fetch(`/api/v1/users/me/favorites/${encodeURIComponent(symbol)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  await refreshAllUI();
+}
+
+
+async function refreshFavoritesUI() {
+  try {
+    await loadFavorites();
+    
+  } catch (e) {
+    console.error(e);
+    showConfirmModal("No se logró cargar favoritas (mirá Console/Network).");
+  }
+}
+
+
 
 
 
