@@ -1,10 +1,13 @@
 package bootstrap
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -74,10 +77,14 @@ func Start() (*gin.Engine, error) {
 
 	quoteRepo := mysqlrepo.NewMySQLQuoteRepository(db)
 
+	ctrlRepo := mysqlrepo.NewMySQLRefreshControlRepository(db)
+
 	lastPriceUC := app.GetLastPriceUseCase{
 		CoinRepo:  coinRepo,
 		QuoteRepo: quoteRepo,
 	}
+
+	var refreshMu sync.Mutex
 
 	refreshUC := app.RefreshQuotesUseCase{
 		CoinRepo:  coinRepo,
@@ -89,6 +96,41 @@ func Start() (*gin.Engine, error) {
 			"coingecko": "USD",
 		},
 	}
+
+	go func() {
+		run := func() {
+			refreshMu.Lock()
+			defer refreshMu.Unlock()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+			out, err := refreshUC.Execute(ctx)
+			cancel()
+
+			if err != nil {
+				fmt.Println("cron refresh error:", err)
+				return
+			}
+			fmt.Println("cron refresh ok", out)
+		}
+
+		run()
+
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			run()
+		}
+	}()
+
+	manualUC := app.ManualRefreshWithCooldownUseCase{
+		RefreshUC:   refreshUC,
+		ControlRepo: ctrlRepo,
+		Now:         time.Now,
+		Cooldown:    20 * time.Minute,
+	}
+
+	refreshHandler := httpapi.RefreshHandler{UC: manualUC}
 
 	searchQuotesUC := app.SearchQuotesUseCase{
 		Repo: quoteRepo,
@@ -119,7 +161,6 @@ func Start() (*gin.Engine, error) {
 		httpapi.GetCurrentPriceHandler{UC: lastPriceUC}.Handle,
 	)
 
-	r.POST("/api/v1/job/refresh", httpapi.RefreshHandler{UC: refreshUC}.Handle)
 	r.GET("/api/v1/quotes",
 		httpapi.AuthOptional(jwtSecret),
 		httpapi.SearchQuotesHandler{UC: searchQuotesUC}.Handle,
@@ -128,6 +169,13 @@ func Start() (*gin.Engine, error) {
 	// privados
 	auth := r.Group("/api/v1")
 	auth.Use(httpapi.AuthRequired(jwtSecret))
+
+	auth.POST("/job/refresh", func(c *gin.Context) {
+		refreshMu.Lock()
+		defer refreshMu.Unlock()
+		refreshHandler.Handle(c)
+	})
+
 	auth.POST("/coins", httpapi.CreateCoinHandler{UC: createCoinUC}.Handle)
 	auth.GET("/users/me/favorites", httpapi.ListFavoritesHandler{FavRepo: favRepo}.Handle)
 	auth.PUT("/coins/:symbol", httpapi.UpdateCoinHandler{UC: updateCoinUC}.Handle)

@@ -18,3 +18,11 @@ CREATE TABLE IF NOT EXISTS user_favorites (
   INDEX idx_fav_user (user_id),
   INDEX idx_fav_coin (coin_id)
 );
+
+CREATE TABLE IF NOT EXISTS refresh_control (
+  `key` VARCHAR(64) NOT NULL,
+  `value` VARCHAR(255) NOT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`key`)
+);
+

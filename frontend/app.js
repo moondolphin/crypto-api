@@ -522,41 +522,94 @@ btnOpenLogin?.addEventListener("click", async () => {
     // =========================
   //  POST Refresh (manual)
   // =========================
-  btnRunRefresh?.addEventListener("click", async () => {
-    try {
-      btnRunRefresh.disabled = true;
-      const oldText = btnRunRefresh.textContent;
-      btnRunRefresh.textContent = "Refreshing...";
+ btnRunRefresh?.addEventListener("click", async () => {
+  let cooldownInterval = null;
 
-      const res = await authFetch("/api/v1/job/refresh", {
-        method: "POST",
-      });
+  try {
+    btnRunRefresh.disabled = true;
+    btnRunRefresh.textContent = "Refreshing...";
 
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        throw new Error(body || `HTTP ${res.status}`);
+    const res = await authFetch("/api/v1/job/refresh", {
+      method: "POST",
+    });
+
+    if (!res.ok) {
+      if (res.status === 429) {
+        const j = await res.json().catch(() => ({}));
+        let remaining = Number(j.retry_after_seconds || 0);
+
+        showModal(
+          `Cooldown activo. Esperá ${Math.ceil(remaining / 60)} min para refrescar.`,
+          "Cooldown",
+          "⏳"
+        );
+
+        // activar tooltip
+        btnRunRefresh.setAttribute("data-bs-toggle", "tooltip");
+        btnRunRefresh.setAttribute("data-bs-placement", "top");
+
+        const tooltip = new bootstrap.Tooltip(btnRunRefresh);
+
+        const updateText = () => {
+          const min = Math.floor(remaining / 60);
+          const sec = remaining % 60;
+          btnRunRefresh.textContent =
+            `Cooldown (${min}m ${sec.toString().padStart(2, "0")}s)`;
+          btnRunRefresh.setAttribute(
+            "title",
+            `Podrás refrescar en ${min}m ${sec}s`
+          );
+          tooltip.update();
+        };
+
+        updateText();
+
+        cooldownInterval = setInterval(() => {
+          remaining--;
+          if (remaining <= 0) {
+            clearInterval(cooldownInterval);
+            tooltip.dispose();
+            btnRunRefresh.removeAttribute("data-bs-toggle");
+            btnRunRefresh.removeAttribute("title");
+            btnRunRefresh.textContent = "POST Refresh (manual)";
+            btnRunRefresh.disabled = false;
+            return;
+          }
+          updateText();
+        }, 1000);
+
+        return;
       }
 
-      const data = await res.json();
+      const body = await res.text().catch(() => "");
+      throw new Error(body || `HTTP ${res.status}`);
+    }
 
-      const coinsProcessed = data.coins_processed ?? data.coinsProcessed ?? data.CoinsProcessed ?? "-";
-      const quotesSaved = data.quotes_saved ?? data.quotesSaved ?? data.QuotesSaved ?? "-";
-      const failed = data.failed ?? data.Failed ?? "-";
+    const data = await res.json();
 
-      showToast(`Refresh OK ✅  Coins: ${coinsProcessed} | Quotes: ${quotesSaved} | Failed: ${failed}`, "success");
+    const coinsProcessed = data.coins_processed ?? "-";
+    const quotesSaved = data.quotes_saved ?? "-";
+    const failed = data.failed ?? "-";
 
-      // Recargar tabla de quotes
-      if (typeof loadQuotes === "function") {
-        await loadQuotes();
-      }
-    } catch (err) {
-      console.error(err);
-      showToast(`Refresh falló ❌ ${err?.message || err}`, "danger");
-    } finally {
+    showToast(
+      `Refresh OK ✅ Coins: ${coinsProcessed} | Quotes: ${quotesSaved} | Failed: ${failed}`,
+      "success"
+    );
+
+    await loadQuotes?.();
+
+  } catch (err) {
+    console.error(err);
+    showToast(`Refresh falló ❌ ${err?.message || err}`, "danger");
+  } finally {
+    if (!btnRunRefresh.textContent.startsWith("Cooldown")) {
       btnRunRefresh.disabled = false;
       btnRunRefresh.textContent = "POST Refresh (manual)";
     }
-  });
+  }
+});
+
+
 
     // =========================
   // Gestionar Coins (modal + acciones)
