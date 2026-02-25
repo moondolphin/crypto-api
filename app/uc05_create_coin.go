@@ -33,7 +33,6 @@ type CreateCoinOutput struct {
 	BinanceSymbol string `json:"binance_symbol"`
 }
 
-
 type ProviderGetter interface {
 	Get(name string) (domain.PriceProvider, bool)
 }
@@ -66,7 +65,6 @@ func (uc CreateCoinUseCase) Execute(ctx context.Context, in CreateCoinInput) (Cr
 	inCG := sanitizeOptionalString(in.CoinGeckoID)
 	inBN := sanitizeOptionalString(in.BinanceSymbol)
 
-	
 	// Si son inválidos: se ignoran (no pisan) y luego se auto-resuelven.
 	if inBN != "" {
 		if err := validateBinanceSymbol(ctx, client, inBN); err != nil {

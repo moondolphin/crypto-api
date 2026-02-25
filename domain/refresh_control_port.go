@@ -1,5 +1,8 @@
 package domain
 
+//go:generate echo Generating mocks for refresh_control_port.go
+//go:generate go run go.uber.org/mock/mockgen@v0.5.0 -source=refresh_control_port.go -destination=../test/mocks/refresh_control_port_mock.go -package=mocks
+
 import (
 	"context"
 	"time"

@@ -1,5 +1,8 @@
 package domain
 
+//go:generate echo Generating mocks for price_port.go
+//go:generate go run go.uber.org/mock/mockgen@v0.5.0 -source=price_port.go -destination=../test/mocks/price_port_mock.go -package=mocks
+
 import "context"
 
 type PriceProvider interface {
