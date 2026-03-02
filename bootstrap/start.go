@@ -132,6 +132,10 @@ func Start() (*gin.Engine, error) {
 
 	refreshHandler := httpapi.RefreshHandler{UC: manualUC}
 
+	getQuoteFiltersUC := app.GetQuoteFiltersUseCase{
+		Repo: quoteRepo,
+	}
+
 	searchQuotesUC := app.SearchQuotesUseCase{
 		Repo: quoteRepo,
 	}
@@ -161,6 +165,10 @@ func Start() (*gin.Engine, error) {
 		httpapi.GetCurrentPriceHandler{UC: lastPriceUC}.Handle,
 	)
 
+	r.GET("/api/v1/quotes/filters",
+		httpapi.AuthOptional(jwtSecret),
+		httpapi.GetQuoteFiltersHandler{UC: getQuoteFiltersUC}.Handle,
+	)
 	r.GET("/api/v1/quotes",
 		httpapi.AuthOptional(jwtSecret),
 		httpapi.SearchQuotesHandler{UC: searchQuotesUC}.Handle,

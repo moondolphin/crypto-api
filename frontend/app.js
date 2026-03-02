@@ -97,6 +97,89 @@ btnFavLast?.addEventListener("click", async () => {
 });
 
 
+const API_BASE = "http://localhost:8080/api/v1";
+
+function qs(id) {
+  return document.getElementById(id);
+}
+
+function buildQuery(params) {
+  const sp = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v === undefined || v === null) return;
+    const s = String(v).trim();
+    if (s !== "") sp.append(k, s);
+  });
+  return sp.toString();
+}
+
+
+function getFilterState() {
+  return {
+    symbol: qs("f-symbol")?.value || "",
+    provider: qs("f-provider")?.value || "",
+    currency: qs("f-currency")?.value || "",
+    min_price: qs("f-min")?.value || "",
+    max_price: qs("f-max")?.value || "",
+    from: qs("f-from")?.value || "",
+    to: qs("f-to")?.value || "",
+    page: qs("f-page")?.value || 1,
+    page_size: qs("f-page-size")?.value || 50
+  };
+}
+
+
+function setSelectOptions(selectEl, values) {
+  if (!selectEl) return;
+
+  const previous = selectEl.value;
+  selectEl.innerHTML = "";
+
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = "All";
+  selectEl.appendChild(empty);
+
+  values.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    selectEl.appendChild(opt);
+  });
+
+  if (values.includes(previous)) {
+    selectEl.value = previous;
+  } else {
+    selectEl.value = "";
+  }
+}
+
+function renderFilters(resp) {
+  const f = resp.filters;
+
+  setSelectOptions(qs("f-symbol"), f.symbols || []);
+  setSelectOptions(qs("f-provider"), f.providers || []);
+  setSelectOptions(qs("f-currency"), f.currencies || []);
+
+  // Opcional: mostrar rangos reales como placeholder
+  if (qs("f-min") && f.min_price) {
+    qs("f-min").placeholder = `min ${f.min_price}`;
+  }
+  if (qs("f-max") && f.max_price) {
+    qs("f-max").placeholder = `max ${f.max_price}`;
+  }
+}
+
+function renderQuotes(resp) {
+  const summary = qs("quotes-summary");
+
+  // Reusa el renderer que ya formatea fechas y escapa HTML
+  renderRows(resp.items || []);
+
+  const s = resp.summary || {};
+  summary.textContent =
+    `Total: ${s.total_items ?? 0} | Page ${s.page ?? 1}/${s.total_pages ?? 1} | Size ${s.page_size ?? 50}`;
+}
 
   // =========================
   // Última cotización
@@ -137,6 +220,38 @@ btnFavLast?.addEventListener("click", async () => {
       }
     });
   }
+
+  // =========================
+  // los filters de la tabla (que también refrescan las opciones dinámicas) y la tabla en sí (con paginación)
+  // =========================
+
+  async function refreshQuotesAndFilters() {
+  const state = getFilterState();
+
+  const baseParams = {
+    symbol: state.symbol,
+    provider: state.provider,
+    currency: state.currency,
+    min_price: state.min_price,
+    max_price: state.max_price,
+    from: state.from,
+    to: state.to
+  };
+
+  const quotesParams = {
+    ...baseParams,
+    page: state.page,
+    page_size: state.page_size
+  };
+
+  const [quotes, filters] = await Promise.all([
+    fetch(`${API_BASE}/quotes?${buildQuery(quotesParams)}`).then(r => r.json()),
+    fetch(`${API_BASE}/quotes/filters?${buildQuery(baseParams)}`).then(r => r.json())
+  ]);
+
+  renderQuotes(quotes);
+  renderFilters(filters);
+}
 
   // =========================
   // Tabla de quotes
@@ -338,6 +453,28 @@ async function getFavSymbolsSet() {
     fPage.value = String(p);
     loadQuotes();
   });
+
+
+    qs("btn-apply-filters")?.addEventListener("click", () => {
+    qs("f-page").value = 1; // reset page
+    refreshQuotesAndFilters();
+  });
+
+  qs("btn-prev")?.addEventListener("click", () => {
+    const page = parseInt(qs("f-page").value || "1");
+    if (page > 1) {
+      qs("f-page").value = page - 1;
+      refreshQuotesAndFilters();
+    }
+  });
+
+  qs("btn-next")?.addEventListener("click", () => {
+    const page = parseInt(qs("f-page").value || "1");
+    qs("f-page").value = page + 1;
+    refreshQuotesAndFilters();
+  });
+
+  refreshQuotesAndFilters();
 
   // Primera carga
   loadQuotes();

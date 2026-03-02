@@ -11,4 +11,7 @@ type QuoteRepository interface {
 	GetLatest(ctx context.Context, symbol, provider, currency string) (*PriceQuote, error)
 
 	ListFilter(ctx context.Context, f QuoteFilter) ([]Quote, int, error)
+
+	// NEW: faceted filters ("tamiz")
+	ListAvailableFilters(ctx context.Context, f QuoteFilter) (QuoteFilters, error)
 }

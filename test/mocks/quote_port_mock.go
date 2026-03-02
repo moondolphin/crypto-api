@@ -70,6 +70,21 @@ func (mr *MockQuoteRepositoryMockRecorder) Insert(ctx, q any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Insert", reflect.TypeOf((*MockQuoteRepository)(nil).Insert), ctx, q)
 }
 
+// ListAvailableFilters mocks base method.
+func (m *MockQuoteRepository) ListAvailableFilters(ctx context.Context, f domain.QuoteFilter) (domain.QuoteFilters, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListAvailableFilters", ctx, f)
+	ret0, _ := ret[0].(domain.QuoteFilters)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListAvailableFilters indicates an expected call of ListAvailableFilters.
+func (mr *MockQuoteRepositoryMockRecorder) ListAvailableFilters(ctx, f any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAvailableFilters", reflect.TypeOf((*MockQuoteRepository)(nil).ListAvailableFilters), ctx, f)
+}
+
 // ListFilter mocks base method.
 func (m *MockQuoteRepository) ListFilter(ctx context.Context, f domain.QuoteFilter) ([]domain.Quote, int, error) {
 	m.ctrl.T.Helper()

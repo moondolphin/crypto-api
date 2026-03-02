@@ -3,6 +3,8 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"time"
 
 	"github.com/moondolphin/crypto-api/domain"
 )
@@ -62,22 +64,9 @@ WHERE symbol = ?
 	return &out, nil
 }
 
-func (r *MySQLQuoteRepository) ListFilter(ctx context.Context, f domain.QuoteFilter) ([]domain.Quote, int, error) {
-	// defaults defensivos
-	page := f.Page
-	if page <= 0 {
-		page = 1
-	}
-	pageSize := f.PageSize
-	if pageSize <= 0 {
-		pageSize = 50
-	}
-	if pageSize > 100 {
-		pageSize = 100
-	}
-	offset := (page - 1) * pageSize
-
-	// WHERE dinámico
+// buildQuoteWhere arma el WHERE dinámico y sus args para reutilizarlo
+// tanto en listados como en "faceted filters".
+func buildQuoteWhere(f domain.QuoteFilter) (string, []any) {
 	where := " WHERE 1=1"
 	args := make([]any, 0, 12)
 
@@ -109,6 +98,26 @@ func (r *MySQLQuoteRepository) ListFilter(ctx context.Context, f domain.QuoteFil
 		where += " AND price <= ?"
 		args = append(args, *f.MaxPrice)
 	}
+
+	return where, args
+}
+
+func (r *MySQLQuoteRepository) ListFilter(ctx context.Context, f domain.QuoteFilter) ([]domain.Quote, int, error) {
+	// defaults defensivos
+	page := f.Page
+	if page <= 0 {
+		page = 1
+	}
+	pageSize := f.PageSize
+	if pageSize <= 0 {
+		pageSize = 50
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	offset := (page - 1) * pageSize
+
+	where, args := buildQuoteWhere(f)
 
 	// 1) COUNT total (para summary)
 	countSQL := "SELECT COUNT(*) FROM quotes" + where
@@ -164,3 +173,87 @@ LIMIT ? OFFSET ?
 
 	return out, total, nil
 }
+
+// ListAvailableFilters devuelve "faceted filters":
+// combos (symbol/provider/currency) y rangos (price/quoted_at) recalculados
+// aplicando el mismo tamiz (WHERE dinámico) de QuoteFilter.
+func (r *MySQLQuoteRepository) ListAvailableFilters(ctx context.Context, f domain.QuoteFilter) (domain.QuoteFilters, error) {
+	where, args := buildQuoteWhere(f)
+
+	distinctList := func(col string) ([]string, error) {
+		q := fmt.Sprintf(`SELECT DISTINCT %s FROM quotes %s ORDER BY %s ASC`, col, where, col)
+		rows, err := r.DB.QueryContext(ctx, q, args...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		out := make([]string, 0, 16)
+		for rows.Next() {
+			var v sql.NullString
+			if err := rows.Scan(&v); err != nil {
+				return nil, err
+			}
+			if v.Valid && v.String != "" {
+				out = append(out, v.String)
+			}
+		}
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return out, nil
+	}
+
+	symbols, err := distinctList("symbol")
+	if err != nil {
+		return domain.QuoteFilters{}, err
+	}
+	providers, err := distinctList("provider")
+	if err != nil {
+		return domain.QuoteFilters{}, err
+	}
+	currencies, err := distinctList("currency")
+	if err != nil {
+		return domain.QuoteFilters{}, err
+	}
+
+	// rangos de price (DECIMAL) -> string sin perder precisión
+	var minPrice, maxPrice sql.NullString
+	priceQ := `SELECT CAST(MIN(price) AS CHAR), CAST(MAX(price) AS CHAR) FROM quotes` + where
+	if err := r.DB.QueryRowContext(ctx, priceQ, args...).Scan(&minPrice, &maxPrice); err != nil {
+		return domain.QuoteFilters{}, err
+	}
+
+	// rangos de quoted_at
+	var minTime, maxTime sql.NullTime
+	timeQ := `SELECT MIN(quoted_at), MAX(quoted_at) FROM quotes` + where
+	if err := r.DB.QueryRowContext(ctx, timeQ, args...).Scan(&minTime, &maxTime); err != nil {
+		return domain.QuoteFilters{}, err
+	}
+
+	out := domain.QuoteFilters{
+		Symbols:    symbols,
+		Providers:  providers,
+		Currencies: currencies,
+	}
+
+	if minPrice.Valid {
+		out.MinPrice = minPrice.String
+	}
+	if maxPrice.Valid {
+		out.MaxPrice = maxPrice.String
+	}
+
+	if minTime.Valid {
+		t := minTime.Time.UTC()
+		out.From = &t
+	}
+	if maxTime.Valid {
+		t := maxTime.Time.UTC()
+		out.To = &t
+	}
+
+	return out, nil
+}
+
+var _ = time.RFC3339
